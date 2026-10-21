@@ -395,8 +395,35 @@ html,body{
   var speechSeqId    = 0;
   var explanationOpen= false;
 
-  var expLoopId      = 0;
-  var expLoopTimer   = null;
+var expLoopId      = 0;
+var expLoopTimer   = null;
+
+/* ═══════════════════ AUDIO ═══════════════════ */
+
+var currentAudio = null;
+
+function playAudio(file){
+
+    if(currentAudio){
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+    }
+
+    currentAudio = new Audio(file);
+
+    currentAudio.play();
+
+}
+
+function playQuestionAudio(){
+
+    var qNo = currentIndex + 1;
+
+    playAudio(
+        'q' + qNo + '/q' + qNo + '.mp3'
+    );
+
+}
 
   /* ═══════════════════ DOM REFS ═══════════════════ */
   var elOverlay      = document.getElementById('speech-overlay');
@@ -723,8 +750,8 @@ html,body{
       addScaleOption(opt, i, colorClass);
     });
 
-    window.scrollTo(0, 0);
-    speakSequence();
+window.scrollTo(0, 0);
+playQuestionAudio();
   }
 
   function addScaleOption(opt, index, colorClass){
