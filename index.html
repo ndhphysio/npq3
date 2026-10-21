@@ -14,7 +14,7 @@ html,body{
   overflow-x:hidden;
 }
 
-/* ── Speech unlock overlay ── */
+/* ── Audio unlock overlay ── */
 #speech-overlay{
   position:fixed;top:0;left:0;right:0;bottom:0;
   background:rgba(0,0,0,0.88);
@@ -32,13 +32,6 @@ html,body{
 @keyframes pulse{
   0%,100%{transform:scale(1);opacity:1}
   50%{transform:scale(1.18);opacity:.65}
-}
-
-/* ── No-speech banner ── */
-#no-speech-banner{
-  display:none;position:fixed;top:0;left:0;right:0;
-  background:#e74c3c;color:#fff;text-align:center;
-  padding:.7rem;font-size:1.2rem;z-index:500;
 }
 
 /* ── App container ── */
@@ -227,8 +220,6 @@ html,body{
   <div class="tap-sub">Tap to enable voice</div>
 </div>
 
-<div id="no-speech-banner">此瀏覽器不支援語音朗讀</div>
-
 <div id="app">
   <div class="header-title">NPQ 頸部疼痛問卷</div>
   <div class="header-sub">新界東醫院聯網物理治療部</div>
@@ -268,7 +259,6 @@ html,body{
 (function(){
   'use strict';
 
-  /* ═══════════════════ DATA ═══════════════════ */
   var questions = [
     {
       id: 1,
@@ -287,9 +277,9 @@ html,body{
       text: '頸痛與睡眠',
       explanation: '想問你條頸痛會唔會影響你瞓覺？例如有冇試過因為痛而瞓唔好、或者每晚瞓少咗？',
       options: [
-        { label: '頸痛從不干擾我睡眠', speech: '頸痛從不肝擾我睡眠', value: 0, explanation: '瞓覺完全冇受頸痛影響。' },
-        { label: '頸痛有時會干擾我睡眠', speech: '頸痛有時會肝擾我睡眠', value: 1, explanation: '間唔中會因為頸痛而影響睡眠。' },
-        { label: '頸痛經常會干擾我睡眠', speech: '頸痛經常會肝擾我睡眠', value: 2, explanation: '經常因為頸痛而瞓得差。' },
+        { label: '頸痛從不干擾我睡眠', value: 0, explanation: '瞓覺完全冇受頸痛影響。' },
+        { label: '頸痛有時會干擾我睡眠', value: 1, explanation: '間唔中會因為頸痛而影響睡眠。' },
+        { label: '頸痛經常會干擾我睡眠', value: 2, explanation: '經常因為頸痛而瞓得差。' },
         { label: '頸痛使我每晚睡眠少於五小時', value: 3, explanation: '因為頸痛，搞到每晚瞓唔夠五個鐘。' },
         { label: '頸痛使我每晚睡眠少於兩小時', value: 4, explanation: '痛到每晚瞓唔夠兩個鐘，嚴重影響休息。' }
       ]
@@ -384,106 +374,80 @@ html,body{
   var BTN_COLORS_5 = ['clr-green', 'clr-blue', 'clr-gold', 'clr-orange', 'clr-red'];
   var BTN_COLORS_6 = ['clr-gray', 'clr-green', 'clr-blue', 'clr-gold', 'clr-orange', 'clr-deep-red'];
 
-  /* ═══════════════════ STATE ═══════════════════ */
   var currentIndex   = 0;
   var answers        = {};
   var skippedCount   = 0;
   var locked         = false;
-  var speechEnabled  = false;
-  var speechOK       = ('speechSynthesis' in window);
-  var repeatTimer    = null;
+  var audioEnabled   = false;
   var explanationOpen= false;
-/* ═══════════════════ AUDIO ═══════════════════ */
+  var currentAudio   = null;
 
-var currentAudio = null;
-
-function playAudio(file){
-
+  /* ═══════════════════ AUDIO FUNCTIONS (MATCHING YOUR GITHUB NAMES) ═══════════════════ */
+  function stopAudio(){
     if(currentAudio){
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
     }
+  }
 
+  function playAudio(file){
+    stopAudio();
+    if(!audioEnabled) return;
     currentAudio = new Audio(file);
-
     currentAudio.onerror = function(){
-        console.log('Audio not found:', file);
+      console.log('無法載入音訊檔案:', file);
     };
+    currentAudio.play().catch(function(e){
+      console.log('播放被阻擋或出錯:', e);
+    });
+  }
 
-    currentAudio.play();
-
-}
-
-function playAudioSequence(files){
-
+  function playAudioSequence(files){
     var index = 0;
-
     function next(){
+      if(index >= files.length){
+        currentAudio = null;
+        return;
+      }
+      if(!audioEnabled) return;
 
-        if(index >= files.length){
-
-    currentAudio = null;
-
-    return;
-}
-
-        if(currentAudio){
-            currentAudio.pause();
-        }
-
-        currentAudio = new Audio(
-            files[index]
-        );
-
-        currentAudio.onended = function(){
-
-            index++;
-
-            setTimeout(
-                next,
-                300
-            );
-
-        };
-
-        currentAudio.play();
-
+      currentAudio = new Audio(files[index]);
+      currentAudio.onended = function(){
+        index++;
+        setTimeout(next, 300); // 每個音檔之間的微小間隔
+      };
+      currentAudio.onerror = function(){
+        console.log('序列音訊載入失敗:', files[index]);
+        index++;
+        next();
+      };
+      currentAudio.play().catch(function(e){
+        console.log('序列播放出錯:', e);
+        index++;
+        next();
+      });
     }
-
     next();
+  }
 
-}
-
-function playQuestionAudio(){
-
+  function playQuestionAudio(){
     var qNo = currentIndex + 1;
-
     var files = [];
-
-    files.push(
-        'q' + qNo + '/q' + qNo + '.mp3'
-    );
+    
+    // 對應你的 GitHub 檔名格式：q1/q1.mp3 與 q1/q1 o1.mp3[cite: 12]
+    files.push('q' + qNo + '/q' + qNo + '.mp3');
 
     var q = questions[currentIndex];
-
     for(var i = 0; i < q.options.length; i++){
-
-        files.push(
-            'q' + qNo +
-            '/q' + qNo +
-            ' o' + (i + 1) +
-            '.mp3'
-        );
-
+      files.push('q' + qNo + '/q' + qNo + ' o' + (i + 1) + '.mp3');
     }
 
     playAudioSequence(files);
-
-}
+  }
 
   /* ═══════════════════ DOM REFS ═══════════════════ */
   var elOverlay      = document.getElementById('speech-overlay');
-  var elBanner       = document.getElementById('no-speech-banner');
   var elProgressTxt  = document.getElementById('progress-text');
   var elProgressBar  = document.getElementById('progress-bar-fill');
   var elQNum         = document.getElementById('question-number');
@@ -493,7 +457,7 @@ function playQuestionAudio(){
   var elExplainBtn   = document.getElementById('explain-btn');
   var elExplainPanel = document.getElementById('explanation-panel');
   var elExplainText  = document.getElementById('explain-text');
-  var elExplainListen= document.getElementById('explain-listen-btn');
+  var elExplainListen= document.getElementById('explanation-listen-btn');
   var elAnswers      = document.getElementById('answers-area');
   var elQuiz         = document.getElementById('quiz-area');
   var elResult       = document.getElementById('result-screen');
@@ -501,70 +465,16 @@ function playQuestionAudio(){
   var elResultScore  = document.getElementById('result-scores');
   var elRestart      = document.getElementById('restart-btn');
 
-  /* ═══════════════════════════════════════════════════
-     ENHANCED CANTONESE VOICE SELECTION
-     ═══════════════════════════════════════════════════ */
-  /* ═══════════════════ HELPERS ═══════════════════ */
-  function isAnyOptionExplanationOpen(){
-    var panels = elAnswers.querySelectorAll('.option-explain-panel');
-    for(var i = 0; i < panels.length; i++){
-      if(panels[i].style.display === 'block') return true;
-    }
-    return false;
-  }
-
-  function clearAllGlow(){
-    var btns = elAnswers.querySelectorAll('.answer-btn');
-    for(var i = 0; i < btns.length; i++) btns[i].classList.remove('glow');
-  }
-
-  function startRepeatTimer(){
-    stopRepeatTimer();
-    repeatTimer = setTimeout(function(){
-      if(!locked && !explanationOpen && !isAnyOptionExplanationOpen()){
-        speakSequence();
-      }
-    }, 10000);
-  }
-
-  function stopRepeatTimer(){
-    if(repeatTimer !== null){ clearTimeout(repeatTimer); repeatTimer = null; }
-  }
-
-  /* ═══════════════════ EXPLANATION LOOP ═══════════════════ */
-  function stopExpLoop(){
-    expLoopId++;
-    if(expLoopTimer !== null){ clearTimeout(expLoopTimer); expLoopTimer = null; }
-  }
-  /* ═══════════════════ SPEECH: SEQUENCE ═══════════════════ */
-
-  /* ═══════════════════ SPEECH: RESULT ═══════════════════ */
-
-  /* ═══════════════════ EXPLANATION (QUESTION) ═══════════════════ */
-function openExplanation(){
-
+  function openExplanation(){
     explanationOpen = true;
-
     elExplainPanel.style.display = 'block';
-
     elExplainBtn.classList.add('active');
-
     closeAllOptionExplanations();
 
-    if(currentAudio){
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-    }
-
     var qNo = currentIndex + 1;
-
-    playAudio(
-        'q' + qNo +
-        '/q' + qNo +
-        ' explain.mp3'
-    );
-
-}
+    // 對應你的 GitHub 檔名格式：q1/q1 explain.mp3[cite: 12]
+    playAudio('q' + qNo + '/q' + qNo + ' explain.mp3');
+  }
 
   function closeExplanation(){
     explanationOpen = false;
@@ -575,16 +485,12 @@ function openExplanation(){
   function toggleExplanation(){
     if(explanationOpen){
       closeExplanation();
-      stopExpLoop();
-      if(speechOK) window.speechSynthesis.cancel();
-      speechSeqId++;
-      startRepeatTimer();
+      stopAudio();
     } else {
       openExplanation();
     }
   }
 
-  /* ═══════════════════ EXPLANATION (OPTIONS) ═══════════════════ */
   function toggleOptionExplanation(index){
     var panel = document.getElementById('opt-explain-' + index);
     var allExpBtns = elAnswers.querySelectorAll('.option-explain-btn');
@@ -593,28 +499,16 @@ function openExplanation(){
     if(panel && panel.style.display === 'block'){
       panel.style.display = 'none';
       if(btn) btn.classList.remove('active');
-      stopExpLoop();
-      if(speechOK) window.speechSynthesis.cancel();
-      speechSeqId++;
-      startRepeatTimer();
+      stopAudio();
     } else {
       closeAllOptionExplanations();
       closeExplanation();
       if(panel) panel.style.display = 'block';
       if(btn) btn.classList.add('active');
-      var q = questions[currentIndex];
-      if(q.options && q.options[index]){
-
-    var qNo = currentIndex + 1;
-
-    playAudio(
-        'q' + qNo +
-        '/q' + qNo +
-        ' o' + (index + 1) +
-        ' explain.mp3'
-    );
-
-}
+      
+      var qNo = currentIndex + 1;
+      // 對應你的 GitHub 檔名格式：q1/q1 o1 explain.mp3[cite: 12]
+      playAudio('q' + qNo + '/q' + qNo + ' o' + (index + 1) + ' explain.mp3');
     }
   }
 
@@ -625,11 +519,10 @@ function openExplanation(){
     for(var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   }
 
-  /* ═══════════════════ RENDER ═══════════════════ */
   function renderQuestion(){
     locked = false;
     explanationOpen = false;
-    stopExpLoop();
+    stopAudio();
     var q = questions[currentIndex];
 
     elProgressTxt.textContent = '第 ' + (currentIndex + 1) + ' / 9 題';
@@ -637,7 +530,6 @@ function openExplanation(){
     elQNum.textContent = '問題 ' + (currentIndex + 1);
     elQText.textContent = q.text;
 
-    // 控制「返回上一題」按鈕：第一題隱藏，第二題或以後顯示
     if(currentIndex > 0){
       elPrevBtn.style.display = 'inline-flex';
     } else {
@@ -657,8 +549,8 @@ function openExplanation(){
       addScaleOption(opt, i, colorClass);
     });
 
-window.scrollTo(0, 0);
-playQuestionAudio();
+    window.scrollTo(0, 0);
+    playQuestionAudio();
   }
 
   function addScaleOption(opt, index, colorClass){
@@ -671,7 +563,6 @@ playQuestionAudio();
     var btn = document.createElement('button');
     btn.className = 'answer-btn ' + colorClass;
 
-    // 檢查之前是否已選過此選項，若有則加上 selected 樣式
     if(answers[currentIndex] !== undefined && answers[currentIndex] === opt.value){
       btn.classList.add('selected');
     }
@@ -679,7 +570,6 @@ playQuestionAudio();
     var ts = document.createElement('span');
     ts.textContent = opt.label;
     btn.appendChild(ts);
-    btn.setAttribute('data-speech', opt.speech || opt.label);
     btn.addEventListener('click', function(){ onAnswer(btn, opt.value); });
     mainRow.appendChild(btn);
 
@@ -704,35 +594,19 @@ playQuestionAudio();
     listenBtn.className = 'explain-listen-btn';
     listenBtn.textContent = '🔊 再聽一次';
     listenBtn.addEventListener('click', function(){
-
-    var qNo = currentIndex + 1;
-
-    playAudio(
-        'q' + qNo +
-        '/q' + qNo +
-        ' o' + (index + 1) +
-        ' explain.mp3'
-    );
-
-});
+      var qNo = currentIndex + 1;
+      playAudio('q' + qNo + '/q' + qNo + ' o' + (index + 1) + ' explain.mp3');
+    });
     panel.appendChild(listenBtn);
 
     wrapper.appendChild(panel);
     elAnswers.appendChild(wrapper);
   }
 
-  /* ═══════════════════ ANSWER ═══════════════════ */
   function onAnswer(btn, value){
     if(locked) return;
     locked = true;
-
-    stopRepeatTimer();
-    stopExpLoop();
-    speechSeqId++;
-    if(speechOK) window.speechSynthesis.cancel();
-    clearAllGlow();
-    closeExplanation();
-    closeAllOptionExplanations();
+    stopAudio();
 
     var all = elAnswers.querySelectorAll('.answer-btn');
     for(var i = 0; i < all.length; i++) all[i].classList.add('locked');
@@ -751,29 +625,15 @@ playQuestionAudio();
     }, 350);
   }
 
-  /* ═══════════════════ PREVIOUS QUESTION ═══════════════════ */
   function prevQuestion(){
     if(currentIndex <= 0) return;
-    stopRepeatTimer();
-    stopExpLoop();
-    speechSeqId++;
-    if(speechOK) window.speechSynthesis.cancel();
-    clearAllGlow();
-    closeExplanation();
-    closeAllOptionExplanations();
-
+    stopAudio();
     currentIndex--;
     renderQuestion();
   }
 
-  /* ═══════════════════ RESULT ═══════════════════ */
   function showResult(){
-    stopRepeatTimer();
-    stopExpLoop();
-    speechSeqId++;
-    if(speechOK) window.speechSynthesis.cancel();
-    clearAllGlow();
-
+    stopAudio();
     elQuiz.style.display = 'none';
     elResult.style.display = 'block';
 
@@ -809,62 +669,39 @@ playQuestionAudio();
       (skippedCount > 0 ? '<span style="font-size:1.2rem;color:#e74c3c;">(已略過第9題駕駛題)</span>' : '');
 
     window.scrollTo(0, 0);
-    speakResult(scoreStr, percentStr);
   }
 
-  /* ═══════════════════ RESTART ═══════════════════ */
   function restart(){
-    stopRepeatTimer();
-    stopExpLoop();
-    speechSeqId++;
-    if(speechOK) window.speechSynthesis.cancel();
-    clearAllGlow();
+    stopAudio();
     startQuiz();
   }
 
-  /* ═══════════════════ INIT ═══════════════════ */
   function init(){
-    if(!speechOK){
-      elOverlay.addEventListener('click', onOverlayTap);
-    }
+    elOverlay.addEventListener('click', onOverlayTap);
     elPrevBtn.addEventListener('click', prevQuestion);
     elReplay.addEventListener('click', function(){
-
       closeExplanation();
       closeAllOptionExplanations();
-
-      if(currentAudio){
-          currentAudio.pause();
-          currentAudio.currentTime = 0;
-      }
-
+      stopAudio();
       playQuestionAudio();
-
-});
+    });
     elExplainBtn.addEventListener('click', function(){
       toggleExplanation();
     });
     elExplainListen.addEventListener('click', function(){
-
-    var qNo = currentIndex + 1;
-
-    playAudio(
-        'q' + qNo +
-        '/q' + qNo +
-        ' explain.mp3'
-    );
-
-});
+      var qNo = currentIndex + 1;
+      playAudio('q' + qNo + '/q' + qNo + ' explain.mp3');
+    });
     elRestart.addEventListener('click', restart);
   }
 
- function onOverlayTap(){
-
+  function onOverlayTap(){
+    audioEnabled = true;
     elOverlay.style.display = 'none';
-
+    var dummyAudio = new Audio();
+    dummyAudio.play().catch(function(){});
     startQuiz();
-
-}
+  }
 
   function startQuiz(){
     currentIndex = 0;
