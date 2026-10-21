@@ -825,16 +825,6 @@ playQuestionAudio();
   /* ═══════════════════ INIT ═══════════════════ */
   function init(){
     if(!speechOK){
-      elOverlay.style.display = 'none';
-      elBanner.style.display = 'block';
-      startQuiz();
-    } else {
-      window.speechSynthesis.getVoices();
-      if(typeof window.speechSynthesis.onvoiceschanged !== 'undefined'){
-        window.speechSynthesis.onvoiceschanged = function(){
-          window.speechSynthesis.getVoices();
-        };
-      }
       elOverlay.addEventListener('click', onOverlayTap);
     }
     elPrevBtn.addEventListener('click', prevQuestion);
@@ -868,15 +858,13 @@ playQuestionAudio();
     elRestart.addEventListener('click', restart);
   }
 
-  function onOverlayTap(){
-    speechEnabled = true;
+ function onOverlayTap(){
+
     elOverlay.style.display = 'none';
-    var dummy = new SpeechSynthesisUtterance('');
-    dummy.lang = 'zh-HK';
-    dummy.volume = 0;
-    window.speechSynthesis.speak(dummy);
+
     startQuiz();
-  }
+
+}
 
   function startQuiz(){
     currentIndex = 0;
