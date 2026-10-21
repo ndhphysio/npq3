@@ -415,13 +415,67 @@ function playAudio(file){
 
 }
 
+function playAudioSequence(files){
+
+    var index = 0;
+
+    function next(){
+
+        if(index >= files.length){
+            return;
+        }
+
+        if(currentAudio){
+            currentAudio.pause();
+        }
+
+        currentAudio = new Audio(
+            files[index]
+        );
+
+        currentAudio.onended = function(){
+
+            index++;
+
+            setTimeout(
+                next,
+                300
+            );
+
+        };
+
+        currentAudio.play();
+
+    }
+
+    next();
+
+}
+
 function playQuestionAudio(){
 
     var qNo = currentIndex + 1;
 
-    playAudio(
+    var files = [];
+
+    files.push(
         'q' + qNo + '/q' + qNo + '.mp3'
     );
+
+    var q = questions[currentIndex];
+
+    for(var i = 0; i < q.options.length; i++){
+
+        files.push(
+            'q' + qNo +
+            '/q' + qNo +
+            ' o' + (i + 1) +
+            '.mp3'
+        );
+
+    }
+
+    playAudioSequence(files);
 
 }
 
