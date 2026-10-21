@@ -411,6 +411,10 @@ function playAudio(file){
 
     currentAudio = new Audio(file);
 
+    currentAudio.onerror = function(){
+        console.log('Audio not found:', file);
+    };
+
     currentAudio.play();
 
 }
@@ -714,13 +718,24 @@ function playQuestionAudio(){
 
   /* ═══════════════════ EXPLANATION (QUESTION) ═══════════════════ */
   function openExplanation(){
+
     explanationOpen = true;
+
     elExplainPanel.style.display = 'block';
+
     elExplainBtn.classList.add('active');
+
     closeAllOptionExplanations();
-    var q = questions[currentIndex];
-    startExpLoop(q.explanation);
-  }
+
+    var qNo = currentIndex + 1;
+
+    playAudio(
+        'q' + qNo +
+        '/q' + qNo +
+        ' explain.mp3'
+    );
+
+}
 
   function closeExplanation(){
     explanationOpen = false;
@@ -760,8 +775,17 @@ function playQuestionAudio(){
       if(btn) btn.classList.add('active');
       var q = questions[currentIndex];
       if(q.options && q.options[index]){
-        startExpLoop(q.options[index].explanation);
-      }
+
+    var qNo = currentIndex + 1;
+
+    playAudio(
+        'q' + qNo +
+        '/q' + qNo +
+        ' o' + (index + 1) +
+        ' explain.mp3'
+    );
+
+}
     }
   }
 
@@ -975,19 +999,35 @@ playQuestionAudio();
     }
     elPrevBtn.addEventListener('click', prevQuestion);
     elReplay.addEventListener('click', function(){
+
       closeExplanation();
       closeAllOptionExplanations();
+
       stopExpLoop();
       stopRepeatTimer();
-      speakSequence();
-    });
+
+      if(currentAudio){
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+      }
+
+      playQuestionAudio();
+
+});
     elExplainBtn.addEventListener('click', function(){
       toggleExplanation();
     });
     elExplainListen.addEventListener('click', function(){
-      var q = questions[currentIndex];
-      startExpLoop(q.explanation);
-    });
+
+    var qNo = currentIndex + 1;
+
+    playAudio(
+        'q' + qNo +
+        '/q' + qNo +
+        ' explain.mp3'
+    );
+
+});
     elRestart.addEventListener('click', restart);
   }
 
