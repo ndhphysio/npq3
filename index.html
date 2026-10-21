@@ -392,12 +392,7 @@ html,body{
   var speechEnabled  = false;
   var speechOK       = ('speechSynthesis' in window);
   var repeatTimer    = null;
-  var speechSeqId    = 0;
   var explanationOpen= false;
-
-var expLoopId      = 0;
-var expLoopTimer   = null;
-
 /* ═══════════════════ AUDIO ═══════════════════ */
 
 var currentAudio = null;
@@ -426,8 +421,11 @@ function playAudioSequence(files){
     function next(){
 
         if(index >= files.length){
-            return;
-        }
+
+    currentAudio = null;
+
+    return;
+}
 
         if(currentAudio){
             currentAudio.pause();
@@ -506,47 +504,6 @@ function playQuestionAudio(){
   /* ═══════════════════════════════════════════════════
      ENHANCED CANTONESE VOICE SELECTION
      ═══════════════════════════════════════════════════ */
-  function applyVoice(utter){
-    var voices = window.speechSynthesis.getVoices();
-    var cantoneseVoice = null;
-
-    for(var i = 0; i < voices.length; i++){
-      var v = voices[i];
-      var lang = (v.lang || '').toLowerCase();
-      var name = (v.name || '').toLowerCase();
-
-      if(lang === 'zh-hk' || lang.indexOf('yue') !== -1 || name.indexOf('cantonese') !== -1 || name.indexOf('粵語') !== -1){
-        cantoneseVoice = v;
-        break;
-      }
-    }
-
-    if(!cantoneseVoice){
-      for(var i = 0; i < voices.length; i++){
-        var v = voices[i];
-        var lang = (v.lang || '').toLowerCase();
-        var name = (v.name || '').toLowerCase();
-        
-        if(lang.indexOf('zh-cn') !== -1 || name.indexOf('mandarin') !== -1 || name.indexOf('普通话') !== -1 || name.indexOf('國語') !== -1){
-          continue;
-        }
-
-        if(lang.indexOf('zh') === 0){
-          cantoneseVoice = v;
-          break;
-        }
-      }
-    }
-
-    if(cantoneseVoice){
-      utter.voice = cantoneseVoice;
-      utter.lang = cantoneseVoice.lang;
-    } else {
-      utter.lang = 'zh-HK';
-    }
-    utter.rate = 0.8;
-  }
-
   /* ═══════════════════ HELPERS ═══════════════════ */
   function isAnyOptionExplanationOpen(){
     var panels = elAnswers.querySelectorAll('.option-explain-panel');
@@ -579,145 +536,12 @@ function playQuestionAudio(){
     expLoopId++;
     if(expLoopTimer !== null){ clearTimeout(expLoopTimer); expLoopTimer = null; }
   }
-
-  function expLoopSpeak(text, myId, cb){
-    if(myId !== expLoopId) return;
-    if(!speechOK || !speechEnabled){ if(cb) cb(); return; }
-    var utter = new SpeechSynthesisUtterance(text);
-    applyVoice(utter);
-    utter.onend   = function(){ if(myId === expLoopId && cb) cb(); };
-    utter.onerror = function(){ if(myId === expLoopId && cb) cb(); };
-    window.speechSynthesis.speak(utter);
-  }
-
-  function startExpLoop(explanationText){
-    stopExpLoop();
-    stopRepeatTimer();
-    if(speechOK) window.speechSynthesis.cancel();
-    clearAllGlow();
-    speechSeqId++;
-
-    var myId = expLoopId;
-    var qText = questions[currentIndex].text;
-
-    expLoopSpeak(explanationText, myId, function(){
-      if(myId !== expLoopId) return;
-      expLoopTimer = setTimeout(function(){
-        if(myId !== expLoopId) return;
-        expLoopRepeatCycle(myId, qText, explanationText);
-      }, 10000);
-    });
-  }
-
-  function expLoopRepeatCycle(myId, qText, eText){
-    if(myId !== expLoopId) return;
-    expLoopSpeak(qText, myId, function(){
-      if(myId !== expLoopId) return;
-      expLoopSpeak(eText, myId, function(){
-        if(myId !== expLoopId) return;
-        expLoopTimer = setTimeout(function(){
-          if(myId !== expLoopId) return;
-          expLoopRepeatCycle(myId, qText, eText);
-        }, 10000);
-      });
-    });
-  }
-
   /* ═══════════════════ SPEECH: SEQUENCE ═══════════════════ */
-  function speakSequence(){
-    if(!speechOK || !speechEnabled) return;
-    window.speechSynthesis.cancel();
-    clearAllGlow();
-    stopRepeatTimer();
-
-    speechSeqId++;
-    var mySeqId = speechSeqId;
-    var q = questions[currentIndex];
-    var items = [];
-
-    items.push({ text: q.text, buttonIndex: -1 });
-
-    var btns = elAnswers.querySelectorAll('.answer-btn');
-    for(var i = 0; i < btns.length; i++){
-      items.push({ text: btns[i].getAttribute('data-speech'), buttonIndex: i });
-    }
-
-    var idx = 0;
-    function speakNext(){
-      if(mySeqId !== speechSeqId) return;
-      if(idx >= items.length || locked){
-        clearAllGlow();
-        if(mySeqId === speechSeqId) startRepeatTimer();
-        return;
-      }
-
-      var item = items[idx];
-      var utter = new SpeechSynthesisUtterance(item.text);
-      applyVoice(utter);
-
-      utter.onstart = function(){
-        if(mySeqId !== speechSeqId) return;
-        clearAllGlow();
-        if(item.buttonIndex >= 0){
-          var allBtns = elAnswers.querySelectorAll('.answer-btn');
-          if(allBtns[item.buttonIndex]) allBtns[item.buttonIndex].classList.add('glow');
-        }
-      };
-      utter.onend = function(){
-        if(mySeqId !== speechSeqId) return;
-        clearAllGlow();
-        idx++;
-        setTimeout(speakNext, 400);
-      };
-      utter.onerror = function(){
-        if(mySeqId !== speechSeqId) return;
-        clearAllGlow();
-        idx++;
-        setTimeout(speakNext, 400);
-      };
-
-      window.speechSynthesis.speak(utter);
-    }
-    speakNext();
-  }
 
   /* ═══════════════════ SPEECH: RESULT ═══════════════════ */
-  function speakResult(scoreStr, percentStr){
-    if(!speechOK || !speechEnabled) return;
-    window.speechSynthesis.cancel();
-    stopRepeatTimer();
-    speechSeqId++;
-    var mySeqId = speechSeqId;
-
-    var lines = [
-      '非常感謝您完成了這份調查中所有的問題。',
-      '請勿關閉此頁面，並告知您的物理治療師。',
-      '您的百分比分數是 ' + percentStr + '。'
-    ];
-
-    var idx = 0;
-    function speakNext(){
-      if(mySeqId !== speechSeqId) return;
-      if(idx >= lines.length) return;
-      var utter = new SpeechSynthesisUtterance(lines[idx]);
-      applyVoice(utter);
-      utter.onend = function(){
-        if(mySeqId !== speechSeqId) return;
-        idx++;
-        setTimeout(speakNext, 400);
-      };
-      utter.onerror = function(){
-        if(mySeqId !== speechSeqId) return;
-        idx++;
-        setTimeout(speakNext, 400);
-      };
-      window.speechSynthesis.speak(utter);
-    }
-    speakNext();
-  }
 
   /* ═══════════════════ EXPLANATION (QUESTION) ═══════════════════ */
-  function openExplanation(){
+function openExplanation(){
 
     explanationOpen = true;
 
@@ -726,6 +550,11 @@ function playQuestionAudio(){
     elExplainBtn.classList.add('active');
 
     closeAllOptionExplanations();
+
+    if(currentAudio){
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+    }
 
     var qNo = currentIndex + 1;
 
@@ -874,7 +703,18 @@ playQuestionAudio();
     var listenBtn = document.createElement('button');
     listenBtn.className = 'explain-listen-btn';
     listenBtn.textContent = '🔊 再聽一次';
-    listenBtn.addEventListener('click', function(){ startExpLoop(opt.explanation); });
+    listenBtn.addEventListener('click', function(){
+
+    var qNo = currentIndex + 1;
+
+    playAudio(
+        'q' + qNo +
+        '/q' + qNo +
+        ' o' + (index + 1) +
+        ' explain.mp3'
+    );
+
+});
     panel.appendChild(listenBtn);
 
     wrapper.appendChild(panel);
@@ -1002,9 +842,6 @@ playQuestionAudio();
 
       closeExplanation();
       closeAllOptionExplanations();
-
-      stopExpLoop();
-      stopRepeatTimer();
 
       if(currentAudio){
           currentAudio.pause();
