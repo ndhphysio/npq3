@@ -381,6 +381,7 @@ html,body{
   var audioEnabled   = false;
   var explanationOpen= false;
   var currentAudio   = null;
+  var inactivityTimer = null;
 
   /* ═══════════════════ AUDIO FUNCTIONS (MATCHING YOUR GITHUB NAMES) ═══════════════════ */
  function clearAllGlow(){
@@ -397,7 +398,38 @@ html,body{
         );
 
     }
+function stopInactivityTimer(){
 
+    if(inactivityTimer){
+
+        clearTimeout(inactivityTimer);
+
+        inactivityTimer = null;
+
+    }
+
+}
+
+function startInactivityTimer(){
+
+    stopInactivityTimer();
+
+    inactivityTimer = setTimeout(function(){
+
+        if(
+            !locked &&
+            !explanationOpen
+        ){
+
+            stopAudio();
+
+            playQuestionAudio();
+
+        }
+
+    },20000);
+
+}
 }
   function stopAudio(){
     
@@ -531,6 +563,7 @@ var elExplainListen =
   var elRestart      = document.getElementById('restart-btn');
 
   function openExplanation(){
+    stopInactivityTimer();
     clearAllGlow();
     explanationOpen = true;
     elExplainPanel.style.display = 'block';
@@ -560,6 +593,7 @@ setTimeout(function(){
 
     playQuestionAudio();
 
+startInactivityTimer();
 },100);
       
     }else{
@@ -629,8 +663,11 @@ setTimeout(function(){
       addScaleOption(opt, i, colorClass);
     });
 
-    window.scrollTo(0, 0);
-    playQuestionAudio();
+window.scrollTo(0, 0);
+
+playQuestionAudio();
+
+startInactivityTimer();
   }
 
   function addScaleOption(opt, index, colorClass){
@@ -684,6 +721,7 @@ setTimeout(function(){
   }
 
   function onAnswer(btn, value){
+    stopInactivityTimer();
     if(locked) return;
     locked = true;
     stopAudio();
@@ -764,6 +802,8 @@ setTimeout(function(){
       closeAllOptionExplanations();
       stopAudio();
       playQuestionAudio();
+
+startInactivityTimer();
     });
     elExplainBtn.addEventListener('click', function(){
       toggleExplanation();
