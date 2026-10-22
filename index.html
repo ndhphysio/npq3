@@ -383,8 +383,7 @@ html,body{
   var currentAudio   = null;
 
   /* ═══════════════════ AUDIO FUNCTIONS (MATCHING YOUR GITHUB NAMES) ═══════════════════ */
-  function stopAudio(){
-    function clearAllGlow(){
+ function clearAllGlow(){
 
     var btns =
         document.querySelectorAll(
@@ -400,6 +399,8 @@ html,body{
     }
 
 }
+  function stopAudio(){
+    
     if(currentAudio){
       currentAudio.pause();
       currentAudio.currentTime = 0;
