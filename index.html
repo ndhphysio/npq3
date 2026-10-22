@@ -412,11 +412,36 @@ html,body{
       }
       if(!audioEnabled) return;
 
-      currentAudio = new Audio(files[index]);
-      currentAudio.onended = function(){
-        index++;
-        setTimeout(next, 300); // 每個音檔之間的微小間隔
-      };
+stopAudio();
+
+currentAudio = new Audio(files[index]);
+
+currentAudio.onended = function(){
+    index++;
+    setTimeout(next,300);
+};
+
+currentAudio.onerror = function(){
+    console.log(
+        'Missing audio:',
+        files[index]
+    );
+
+    index++;
+    setTimeout(next,300);
+};
+
+currentAudio.play().catch(function(e){
+
+    console.log(
+        'Playback error:',
+        e
+    );
+
+    index++;
+    setTimeout(next,300);
+
+});
       currentAudio.onerror = function(){
         console.log('序列音訊載入失敗:', files[index]);
         index++;
@@ -457,7 +482,10 @@ html,body{
   var elExplainBtn   = document.getElementById('explain-btn');
   var elExplainPanel = document.getElementById('explanation-panel');
   var elExplainText  = document.getElementById('explain-text');
-  var elExplainListen= document.getElementById('explanat-listen-btn');
+var elExplainListen =
+    document.getElementById(
+        'explain-listen-btn'
+    );
   var elAnswers      = document.getElementById('answers-area');
   var elQuiz         = document.getElementById('quiz-area');
   var elResult       = document.getElementById('result-screen');
@@ -483,13 +511,26 @@ html,body{
   }
 
   function toggleExplanation(){
+
     if(explanationOpen){
-      closeExplanation();
-      stopAudio();
-    } else {
-      openExplanation();
+
+        closeExplanation();
+
+stopAudio();
+
+setTimeout(function(){
+
+    playQuestionAudio();
+
+},100);
+      
+    }else{
+
+        openExplanation();
+
     }
-  }
+
+}
 
   function toggleOptionExplanation(index){
     var panel = document.getElementById('opt-explain-' + index);
@@ -698,8 +739,6 @@ html,body{
   function onOverlayTap(){
     audioEnabled = true;
     elOverlay.style.display = 'none';
-    var dummyAudio = new Audio();
-    dummyAudio.play().catch(function(){});
     startQuiz();
   }
 
