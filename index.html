@@ -484,11 +484,6 @@ currentAudio.play().catch(function(e){
     setTimeout(next,300);
 
 });
-      currentAudio.onerror = function(){
-        console.log('序列音訊載入失敗:', files[index]);
-        index++;
-        next();
-      };
       currentAudio.play().catch(function(e){
         console.log('序列播放出錯:', e);
         index++;
