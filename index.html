@@ -384,6 +384,22 @@ html,body{
 
   /* ═══════════════════ AUDIO FUNCTIONS (MATCHING YOUR GITHUB NAMES) ═══════════════════ */
   function stopAudio(){
+    function clearAllGlow(){
+
+    var btns =
+        document.querySelectorAll(
+            '.answer-btn'
+        );
+
+    for(var i=0;i<btns.length;i++){
+
+        btns[i].classList.remove(
+            'glow'
+        );
+
+    }
+
+}
     if(currentAudio){
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -406,15 +422,40 @@ html,body{
   function playAudioSequence(files){
     var index = 0;
     function next(){
-      if(index >= files.length){
-        currentAudio = null;
-        return;
-      }
+     if(index >= files.length){
+
+    clearAllGlow();
+
+    currentAudio = null;
+
+    return;
+
+}
       if(!audioEnabled) return;
 
 stopAudio();
 
 currentAudio = new Audio(files[index]);
+
+clearAllGlow();
+
+if(index > 0){
+
+    var answerBtns =
+        document.querySelectorAll(
+            '.answer-btn'
+        );
+
+    var btnIndex = index - 1;
+
+    if(answerBtns[btnIndex]){
+
+        answerBtns[btnIndex]
+            .classList.add('glow');
+
+    }
+
+}
 
 currentAudio.onended = function(){
     index++;
@@ -494,6 +535,7 @@ var elExplainListen =
   var elRestart      = document.getElementById('restart-btn');
 
   function openExplanation(){
+    clearAllGlow();
     explanationOpen = true;
     elExplainPanel.style.display = 'block';
     elExplainBtn.classList.add('active');
@@ -533,6 +575,7 @@ setTimeout(function(){
 }
 
   function toggleOptionExplanation(index){
+    clearAllGlow();
     var panel = document.getElementById('opt-explain-' + index);
     var allExpBtns = elAnswers.querySelectorAll('.option-explain-btn');
     var btn = allExpBtns[index];
