@@ -459,9 +459,6 @@ function playAudio(file){
 }
 
 function playAudioSequence(files){
-    /*
-     * Stop and invalidate any sequence already playing.
-     */
     stopAudio();
     stopInactivityTimer();
 
@@ -471,9 +468,6 @@ function playAudioSequence(files){
     var mySequenceId = audioSequenceId;
 
     function next(){
-        /*
-         * Stop immediately if another sequence has replaced this one.
-         */
         if(mySequenceId !== audioSequenceId){
             return;
         }
@@ -487,20 +481,15 @@ function playAudioSequence(files){
             clearAllGlow();
             currentAudio = null;
 
-            /*
-             * Start the 20-second waiting period only after
-             * the question and all options have finished.
-             */
+            // Start waiting only after the complete question has finished.
             startInactivityTimer();
             return;
         }
 
         clearAllGlow();
 
-        /*
-         * index 0 is the main question.
-         * index 1 is option 1, index 2 is option 2, etc.
-         */
+        // index 0 is the question.
+        // index 1 is option 1, index 2 is option 2, etc.
         if(index > 0){
             var answerBtns =
                 document.querySelectorAll('.answer-btn');
@@ -513,11 +502,24 @@ function playAudioSequence(files){
         }
 
         var file = files[index];
+        var clipFinished = false;
+
         currentAudio = new Audio(file);
 
-        currentAudio.onended = function(){
+        function finishClip(errorMessage){
+            // Prevent onerror and play().catch() from both advancing.
+            if(clipFinished){
+                return;
+            }
+
+            clipFinished = true;
+
             if(mySequenceId !== audioSequenceId){
                 return;
+            }
+
+            if(errorMessage){
+                console.log(errorMessage, file);
             }
 
             clearAllGlow();
@@ -529,48 +531,24 @@ function playAudioSequence(files){
                     next();
                 }
             }, 300);
+        }
+
+        currentAudio.onended = function(){
+            finishClip();
         };
 
         currentAudio.onerror = function(){
-            if(mySequenceId !== audioSequenceId){
-                return;
-            }
-
-            console.log('Missing audio:', file);
-
-            clearAllGlow();
-            currentAudio = null;
-            index++;
-
-            setTimeout(function(){
-                if(mySequenceId === audioSequenceId){
-                    next();
-                }
-            }, 300);
+            finishClip('Missing audio:');
         };
 
         currentAudio.play().catch(function(error){
-            if(mySequenceId !== audioSequenceId){
-                return;
-            }
-
             console.log('Playback error:', file, error);
-
-            clearAllGlow();
-            currentAudio = null;
-            index++;
-
-            setTimeout(function(){
-                if(mySequenceId === audioSequenceId){
-                    next();
-                }
-            }, 300);
+            finishClip('Unable to play audio:');
         });
     }
 
     next();
 }
-
 function playQuestionAudio(){
     if(
         currentIndex < 0 ||
@@ -870,11 +848,14 @@ playQuestionAudio();
       '請勿關閉此頁面，並告知您的物理治療師。';
 
     elResultScore.innerHTML =
-      '<span>總得分: ' + scoreStr + '</span>' +
-      '<span>百分比: ' + percentStr + '</span>' +
-      (skippedCount > 0 ? '<span style="font-size:1.2rem;color:#e74c3c;">(已略過第9題駕駛題)</span>' : '');
+  '<span>總得分: ' + scoreStr + '</span>' +
+  '<span>百分比: ' + percentStr + '</span>' +
+  (skippedCount > 0 ? '<span style="font-size:1.2rem;color:#e74c3c;">(已略過第9題駕駛題)</span>' : '');
 
-    window.scrollTo(0, 0);
+window.scrollTo(0, 0);
+
+// result.mp3 is in the same GitHub folder as index.html
+playAudio('result.mp3');
   }
 
 function restart(){
