@@ -449,15 +449,33 @@ function startInactivityTimer(){
     }
   }
 
-  function playAudio(file){
+function playAudio(file){
+
     stopAudio();
+
     if(!audioEnabled) return;
+
     currentAudio = new Audio(file);
+
     currentAudio.onerror = function(){
-      console.log('無法載入音訊檔案:', file);
+
+        console.log(
+            '無法載入音訊檔案:',
+            file
+        );
+
     };
-   
-  }
+
+    currentAudio.play().catch(function(e){
+
+        console.log(
+            '播放被阻擋或出錯:',
+            e
+        );
+
+    });
+
+}
 
   function playAudioSequence(files){
     var index = 0;
@@ -523,11 +541,6 @@ currentAudio.play().catch(function(e){
     setTimeout(next,300);
 
 });
-      currentAudio.play().catch(function(e){
-        console.log('序列播放出錯:', e);
-        index++;
-        next();
-      });
     }
     next();
   }
@@ -612,6 +625,7 @@ startInactivityTimer();
 }
 
   function toggleOptionExplanation(index){
+    stopInactivityTimer();
     clearAllGlow();
     var panel = document.getElementById('opt-explain-' + index);
     var allExpBtns = elAnswers.querySelectorAll('.option-explain-btn');
@@ -621,6 +635,7 @@ startInactivityTimer();
       panel.style.display = 'none';
       if(btn) btn.classList.remove('active');
       stopAudio();
+      startInactivityTimer();
     } else {
       closeAllOptionExplanations();
       closeExplanation();
@@ -752,6 +767,7 @@ startInactivityTimer();
 
   function prevQuestion(){
     stopInactivityTimer();
+    clearAllGlow();
 
     if(currentIndex <= 0)
         return;
@@ -765,6 +781,7 @@ startInactivityTimer();
 }
 
   function showResult(){
+    stopInactivityTimer();
     stopAudio();
     elQuiz.style.display = 'none';
     elResult.style.display = 'block';
