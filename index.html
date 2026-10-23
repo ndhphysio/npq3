@@ -380,187 +380,217 @@ html,body{
   var locked         = false;
   var audioEnabled   = false;
   var explanationOpen= false;
-  var currentAudio   = null;
-  var inactivityTimer = null;
+var currentAudio = null;
+var inactivityTimer = null;
+var audioSequenceId = 0;
 
   /* ═══════════════════ AUDIO FUNCTIONS (MATCHING YOUR GITHUB NAMES) ═══════════════════ */
 function clearAllGlow(){
+    var btns = document.querySelectorAll('.answer-btn');
 
-    var btns =
-        document.querySelectorAll(
-            '.answer-btn'
-        );
-
-    for(var i=0;i<btns.length;i++){
-
-        btns[i].classList.remove(
-            'glow'
-        );
-
+    for(var i = 0; i < btns.length; i++){
+        btns[i].classList.remove('glow');
     }
-
 }
 
 function stopInactivityTimer(){
-
-    if(inactivityTimer){
-
-        clearTimeout(
-            inactivityTimer
-        );
-
+    if(inactivityTimer !== null){
+        clearTimeout(inactivityTimer);
         inactivityTimer = null;
-
     }
-
 }
 
 function startInactivityTimer(){
-
     stopInactivityTimer();
 
-    inactivityTimer = setTimeout(
-        function(){
+    inactivityTimer = setTimeout(function(){
+        inactivityTimer = null;
 
-            if(
-                !locked &&
-                !explanationOpen
-            ){
-
-                stopAudio();
-
-                playQuestionAudio();
-
-                startInactivityTimer();
-
-            }
-
-        },
-        20000
-    );
-
+        if(!locked && !explanationOpen){
+            /*
+             * Do not call startInactivityTimer() here.
+             * playAudioSequence() will restart the timer
+             * only after the replay has completely finished.
+             */
+            playQuestionAudio();
+        }
+    }, 20000);
 }
-  function stopAudio(){
-    
+
+function stopAudio(){
+    /*
+     * Invalidate all callbacks belonging to the previous sequence.
+     * This prevents an old setTimeout(next, 300) from continuing.
+     */
+    audioSequenceId++;
+
     if(currentAudio){
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-      currentAudio = null;
+        currentAudio.onended = null;
+        currentAudio.onerror = null;
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
     }
-  }
+
+    clearAllGlow();
+}
 
 function playAudio(file){
-
     stopAudio();
+    stopInactivityTimer();
 
     if(!audioEnabled) return;
 
     currentAudio = new Audio(file);
 
-    currentAudio.onerror = function(){
-
-        console.log(
-            '無法載入音訊檔案:',
-            file
-        );
-
+    currentAudio.onended = function(){
+        currentAudio = null;
     };
 
-    currentAudio.play().catch(function(e){
+    currentAudio.onerror = function(){
+        console.log('無法載入音訊檔案:', file);
+        currentAudio = null;
+    };
 
-        console.log(
-            '播放被阻擋或出錯:',
-            e
-        );
-
+    currentAudio.play().catch(function(error){
+        console.log('播放被阻擋或出錯:', error);
+        currentAudio = null;
     });
-
 }
 
-  function playAudioSequence(files){
+function playAudioSequence(files){
+    /*
+     * Stop and invalidate any sequence already playing.
+     */
+    stopAudio();
+    stopInactivityTimer();
+
+    if(!audioEnabled) return;
+
     var index = 0;
+    var mySequenceId = audioSequenceId;
+
     function next(){
-    if(index >= files.length){
+        /*
+         * Stop immediately if another sequence has replaced this one.
+         */
+        if(mySequenceId !== audioSequenceId){
+            return;
+        }
 
-    clearAllGlow();
+        if(locked || explanationOpen){
+            clearAllGlow();
+            return;
+        }
 
-    currentAudio = null;
+        if(index >= files.length){
+            clearAllGlow();
+            currentAudio = null;
 
-    startInactivityTimer();
+            /*
+             * Start the 20-second waiting period only after
+             * the question and all options have finished.
+             */
+            startInactivityTimer();
+            return;
+        }
 
-    return;
+        clearAllGlow();
 
-}
-      if(!audioEnabled) return;
+        /*
+         * index 0 is the main question.
+         * index 1 is option 1, index 2 is option 2, etc.
+         */
+        if(index > 0){
+            var answerBtns =
+                document.querySelectorAll('.answer-btn');
 
-stopAudio();
+            var btnIndex = index - 1;
 
-currentAudio = new Audio(files[index]);
+            if(answerBtns[btnIndex]){
+                answerBtns[btnIndex].classList.add('glow');
+            }
+        }
 
-clearAllGlow();
+        var file = files[index];
+        currentAudio = new Audio(file);
 
-if(index > 0){
+        currentAudio.onended = function(){
+            if(mySequenceId !== audioSequenceId){
+                return;
+            }
 
-    var answerBtns =
-        document.querySelectorAll(
-            '.answer-btn'
-        );
+            clearAllGlow();
+            currentAudio = null;
+            index++;
 
-    var btnIndex = index - 1;
+            setTimeout(function(){
+                if(mySequenceId === audioSequenceId){
+                    next();
+                }
+            }, 300);
+        };
 
-    if(answerBtns[btnIndex]){
+        currentAudio.onerror = function(){
+            if(mySequenceId !== audioSequenceId){
+                return;
+            }
 
-        answerBtns[btnIndex]
-            .classList.add('glow');
+            console.log('Missing audio:', file);
 
+            clearAllGlow();
+            currentAudio = null;
+            index++;
+
+            setTimeout(function(){
+                if(mySequenceId === audioSequenceId){
+                    next();
+                }
+            }, 300);
+        };
+
+        currentAudio.play().catch(function(error){
+            if(mySequenceId !== audioSequenceId){
+                return;
+            }
+
+            console.log('Playback error:', file, error);
+
+            clearAllGlow();
+            currentAudio = null;
+            index++;
+
+            setTimeout(function(){
+                if(mySequenceId === audioSequenceId){
+                    next();
+                }
+            }, 300);
+        });
     }
 
-}
-
-currentAudio.onended = function(){
-    index++;
-    setTimeout(next,300);
-};
-
-currentAudio.onerror = function(){
-    console.log(
-        'Missing audio:',
-        files[index]
-    );
-
-    index++;
-    setTimeout(next,300);
-};
-
-currentAudio.play().catch(function(e){
-
-    console.log(
-        'Playback error:',
-        e
-    );
-
-    index++;
-    setTimeout(next,300);
-
-});
-    }
     next();
-  }
+}
 
-  function playQuestionAudio(){
+function playQuestionAudio(){
     var qNo = currentIndex + 1;
-    var files = [];
-    
-    // 對應你的 GitHub 檔名格式：q1/q1.mp3 與 q1/q1 o1.mp3[cite: 12]
-    files.push('q' + qNo + '/q' + qNo + '.mp3');
-
     var q = questions[currentIndex];
+    var files = [];
+
+    files.push(
+        'q' + qNo + '/q' + qNo + '.mp3'
+    );
+
     for(var i = 0; i < q.options.length; i++){
-      files.push('q' + qNo + '/q' + qNo + ' o' + (i + 1) + '.mp3');
+        files.push(
+            'q' + qNo +
+            '/q' + qNo +
+            ' o' + (i + 1) +
+            '.mp3'
+        );
     }
 
     playAudioSequence(files);
-  }
+}
 
   /* ═══════════════════ DOM REFS ═══════════════════ */
   var elOverlay      = document.getElementById('speech-overlay');
@@ -604,51 +634,68 @@ var elExplainListen =
   }
 
   function toggleExplanation(){
-
     if(explanationOpen){
-
         closeExplanation();
+        stopAudio();
 
-stopAudio();
-
-setTimeout(function(){
-
-    playQuestionAudio();
-
-startInactivityTimer();
-},100);
-      
+        setTimeout(function(){
+            playQuestionAudio();
+        }, 100);
     }else{
-
         openExplanation();
-
     }
-
 }
 
   function toggleOptionExplanation(index){
     stopInactivityTimer();
     clearAllGlow();
-    var panel = document.getElementById('opt-explain-' + index);
-    var allExpBtns = elAnswers.querySelectorAll('.option-explain-btn');
+
+    var panel =
+        document.getElementById('opt-explain-' + index);
+
+    var allExpBtns =
+        elAnswers.querySelectorAll('.option-explain-btn');
+
     var btn = allExpBtns[index];
 
     if(panel && panel.style.display === 'block'){
-      panel.style.display = 'none';
-      if(btn) btn.classList.remove('active');
-      stopAudio();
-      startInactivityTimer();
-    } else {
-      closeAllOptionExplanations();
-      closeExplanation();
-      if(panel) panel.style.display = 'block';
-      if(btn) btn.classList.add('active');
-      
-      var qNo = currentIndex + 1;
-      // 對應你的 GitHub 檔名格式：q1/q1 o1 explain.mp3[cite: 12]
-      playAudio('q' + qNo + '/q' + qNo + ' o' + (index + 1) + ' explain.mp3');
+        panel.style.display = 'none';
+
+        if(btn){
+            btn.classList.remove('active');
+        }
+
+        stopAudio();
+
+        /*
+         * Replay the question instead of starting the timer
+         * while nothing is playing.
+         */
+        setTimeout(function(){
+            playQuestionAudio();
+        }, 100);
+    }else{
+        closeAllOptionExplanations();
+        closeExplanation();
+
+        if(panel){
+            panel.style.display = 'block';
+        }
+
+        if(btn){
+            btn.classList.add('active');
+        }
+
+        var qNo = currentIndex + 1;
+
+        playAudio(
+            'q' + qNo +
+            '/q' + qNo +
+            ' o' + (index + 1) +
+            ' explain.mp3'
+        );
     }
-  }
+}
 
   function closeAllOptionExplanations(){
     var panels = elAnswers.querySelectorAll('.option-explain-panel');
@@ -820,10 +867,11 @@ playQuestionAudio();
     window.scrollTo(0, 0);
   }
 
-  function restart(){
+function restart(){
+    stopInactivityTimer();
     stopAudio();
     startQuiz();
-  }
+}
 
   function init(){
     elOverlay.addEventListener('click', onOverlayTap);
@@ -833,8 +881,6 @@ playQuestionAudio();
       closeAllOptionExplanations();
       stopAudio();
       playQuestionAudio();
-
-startInactivityTimer();
     });
     elExplainBtn.addEventListener('click', function(){
       toggleExplanation();
