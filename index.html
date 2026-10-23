@@ -572,12 +572,21 @@ function playAudioSequence(files){
 }
 
 function playQuestionAudio(){
+    if(
+        currentIndex < 0 ||
+        currentIndex >= questions.length
+    ){
+        return;
+    }
+
     var qNo = currentIndex + 1;
     var q = questions[currentIndex];
     var files = [];
 
     files.push(
-        'q' + qNo + '/q' + qNo + '.mp3'
+        'q' + qNo +
+        '/q' + qNo +
+        '.mp3'
     );
 
     for(var i = 0; i < q.options.length; i++){
@@ -704,7 +713,8 @@ var elExplainListen =
     for(var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   }
 
-  function renderQuestion(){
+function renderQuestion(){
+    stopInactivityTimer();
     locked = false;
     explanationOpen = false;
     stopAudio();
@@ -877,18 +887,25 @@ function restart(){
     elOverlay.addEventListener('click', onOverlayTap);
     elPrevBtn.addEventListener('click', prevQuestion);
     elReplay.addEventListener('click', function(){
-      closeExplanation();
-      closeAllOptionExplanations();
-      stopAudio();
-      playQuestionAudio();
-    });
+    stopInactivityTimer();
+    closeExplanation();
+    closeAllOptionExplanations();
+    playQuestionAudio();
+});
     elExplainBtn.addEventListener('click', function(){
       toggleExplanation();
     });
     elExplainListen.addEventListener('click', function(){
-      var qNo = currentIndex + 1;
-      playAudio('q' + qNo + '/q' + qNo + ' explain.mp3');
-    });
+    stopInactivityTimer();
+
+    var qNo = currentIndex + 1;
+
+    playAudio(
+        'q' + qNo +
+        '/q' + qNo +
+        ' explain.mp3'
+    );
+});
     elRestart.addEventListener('click', restart);
   }
 
