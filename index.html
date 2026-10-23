@@ -480,11 +480,13 @@ function playAudio(file){
   function playAudioSequence(files){
     var index = 0;
     function next(){
-     if(index >= files.length){
+    if(index >= files.length){
 
     clearAllGlow();
 
     currentAudio = null;
+
+    startInactivityTimer();
 
     return;
 
@@ -688,8 +690,6 @@ startInactivityTimer();
 window.scrollTo(0, 0);
 
 playQuestionAudio();
-
-startInactivityTimer();
   }
 
   function addScaleOption(opt, index, colorClass){
