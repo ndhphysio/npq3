@@ -384,7 +384,7 @@ html,body{
   var inactivityTimer = null;
 
   /* ═══════════════════ AUDIO FUNCTIONS (MATCHING YOUR GITHUB NAMES) ═══════════════════ */
- function clearAllGlow(){
+function clearAllGlow(){
 
     var btns =
         document.querySelectorAll(
@@ -398,11 +398,16 @@ html,body{
         );
 
     }
+
+}
+
 function stopInactivityTimer(){
 
     if(inactivityTimer){
 
-        clearTimeout(inactivityTimer);
+        clearTimeout(
+            inactivityTimer
+        );
 
         inactivityTimer = null;
 
@@ -414,22 +419,26 @@ function startInactivityTimer(){
 
     stopInactivityTimer();
 
-    inactivityTimer = setTimeout(function(){
+    inactivityTimer = setTimeout(
+        function(){
 
-        if(
-            !locked &&
-            !explanationOpen
-        ){
+            if(
+                !locked &&
+                !explanationOpen
+            ){
 
-            stopAudio();
+                stopAudio();
 
-            playQuestionAudio();
+                playQuestionAudio();
 
-        }
+                startInactivityTimer();
 
-    },20000);
+            }
 
-}
+        },
+        20000
+    );
+
 }
   function stopAudio(){
     
@@ -447,9 +456,7 @@ function startInactivityTimer(){
     currentAudio.onerror = function(){
       console.log('無法載入音訊檔案:', file);
     };
-    currentAudio.play().catch(function(e){
-      console.log('播放被阻擋或出錯:', e);
-    });
+   
   }
 
   function playAudioSequence(files){
@@ -744,11 +751,18 @@ startInactivityTimer();
   }
 
   function prevQuestion(){
-    if(currentIndex <= 0) return;
+    stopInactivityTimer();
+
+    if(currentIndex <= 0)
+        return;
+
     stopAudio();
+
     currentIndex--;
+
     renderQuestion();
-  }
+
+}
 
   function showResult(){
     stopAudio();
